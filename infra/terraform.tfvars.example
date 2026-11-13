@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars (git-ignored) and fill in.
+
+telegram_bot_token = "123456:ABC-your-token-from-BotFather"
+
+# Find IDs by sending /chatid in the chat after the first deploy.
+# Group IDs are negative, e.g. "-1001234567890". Your DM with the bot = your user ID.
+allowed_chat_ids = []
+
+aws_profile = "webkwizards"
+aws_region  = "eu-west-1"
+
+# Optional tuning
+# transcribe_language_options = ["ru-RU", "en-US"]   # languages your friends speak; improves detection
+# summary_language            = "auto"               # default: "Russian"; "auto" = same language as the message
+# daily_limit_per_chat        = 30
+# max_duration_sec            = 600
+# budget_alert_email          = "you@example.com"
+# monthly_budget_usd          = 10
