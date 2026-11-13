@@ -144,6 +144,7 @@ func (a *app) handleMessage(ctx context.Context, m *telegram.Message) error {
 		SpeakerName:   target.From.DisplayName(),
 		RequesterName: m.From.DisplayName(),
 		StyleHint:     truncate(args, maxStyleHintLen),
+		PostedAt:      target.PostedAt(),
 	}
 	return a.enqueue(ctx, j)
 }
@@ -174,6 +175,7 @@ func (a *app) handleRoast(ctx context.Context, m *telegram.Message, args string)
 		StyleHint:     truncate(args, maxStyleHintLen),
 		Text:          truncate(text, telegram.MaxMessageLen),
 		ForwardedFrom: target.ForwardOrigin.Name(),
+		PostedAt:      target.PostedAt(),
 	}
 	if target.ForwardOrigin != nil && j.ForwardedFrom == "" {
 		j.ForwardedFrom = "an unknown author"

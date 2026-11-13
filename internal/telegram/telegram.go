@@ -53,6 +53,7 @@ type Chat struct {
 
 type Message struct {
 	MessageID      int64          `json:"message_id"`
+	Date           int64          `json:"date"` // unix seconds
 	From           *User          `json:"from,omitempty"`
 	Chat           Chat           `json:"chat"`
 	Text           string         `json:"text,omitempty"`
@@ -84,6 +85,19 @@ type MessageOrigin struct {
 	Chat            *Chat  `json:"chat,omitempty"`
 	SenderChat      *Chat  `json:"sender_chat,omitempty"`
 	AuthorSignature string `json:"author_signature,omitempty"`
+	Date            int64  `json:"date"` // when the original message was sent, unix seconds
+}
+
+// PostedAt returns when the content was originally written: the forward origin's date
+// for forwarded messages, otherwise the message's own date. Zero if unknown.
+func (m *Message) PostedAt() int64 {
+	if m == nil {
+		return 0
+	}
+	if m.ForwardOrigin != nil && m.ForwardOrigin.Date != 0 {
+		return m.ForwardOrigin.Date
+	}
+	return m.Date
 }
 
 // Name returns a human-readable author of the forwarded message.
