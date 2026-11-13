@@ -25,6 +25,7 @@ type Config struct {
 	LanguageOptions []string // Transcribe language codes; empty = auto-detect from all languages
 	SummaryLanguage string   // "auto" = same language as the transcript
 	Model           string
+	RoastModel      string
 	Temperature     float32
 }
 
@@ -41,6 +42,7 @@ func Load() (*Config, error) {
 		CacheTTLHours:   envInt("TRANSCRIPT_CACHE_TTL_HOURS", 72),
 		SummaryLanguage: envStr("SUMMARY_LANGUAGE", "Russian"),
 		Model:           envStr("MODEL_ID", "eu.amazon.nova-lite-v1:0"),
+		RoastModel:      envStr("ROAST_MODEL_ID", "eu.anthropic.claude-sonnet-4-6"),
 		Temperature:     float32(envFloat("TEMPERATURE", 0.7)),
 	}
 	for _, s := range splitCSV(os.Getenv("ALLOWED_CHAT_IDS")) {

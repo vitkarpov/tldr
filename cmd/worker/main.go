@@ -53,6 +53,7 @@ func main() {
 	}
 	sum := summarize.New(awsCfg, summarize.Options{
 		Model:           cfg.Model,
+		RoastModel:      cfg.RoastModel,
 		Temperature:     cfg.Temperature,
 		SummaryLanguage: cfg.SummaryLanguage,
 	})
@@ -141,9 +142,7 @@ func (a *app) process(ctx context.Context, j job.Job) error {
 func (a *app) roast(ctx context.Context, j job.Job) error {
 	in := summarize.RoastInput{
 		Text:          j.Text,
-		AuthorName:    j.SpeakerName,
 		ForwardedFrom: j.ForwardedFrom,
-		RequesterName: j.RequesterName,
 		Context:       j.StyleHint,
 	}
 	if j.FileID != "" {

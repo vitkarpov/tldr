@@ -1,9 +1,12 @@
 data "aws_caller_identity" "current" {}
 
 locals {
-  # "eu.amazon.nova-lite-v1:0" -> profile prefix "eu", base model "amazon.nova-lite-v1:0".
-  model_is_profile = can(regex("^(us|eu|apac|us-gov|global)\\.", var.model_id))
-  base_model_id    = local.model_is_profile ? replace(var.model_id, "/^[a-z-]+\\./", "") : var.model_id
+  # Every Bedrock model the worker calls, keyed by its ID. "eu.amazon.nova-lite-v1:0" is
+  # a cross-region inference profile (prefix "eu") for base model "amazon.nova-lite-v1:0".
+  bedrock_models = { for id in distinct([var.model_id, var.roast_model_id]) : id => {
+    is_profile = can(regex("^(us|eu|apac|us-gov|global)\\.", id))
+    base_id    = can(regex("^(us|eu|apac|us-gov|global)\\.", id)) ? replace(id, "/^[a-z-]+\\./", "") : id
+  } }
 }
 
 locals {
@@ -175,6 +178,7 @@ resource "aws_lambda_function" "worker" {
     variables = merge(local.common_env, {
       BUCKET_NAME                 = aws_s3_bucket.media.id
       MODEL_ID                    = var.model_id
+      ROAST_MODEL_ID              = var.roast_model_id
       TEMPERATURE                 = tostring(var.temperature)
       SUMMARY_LANGUAGE            = var.summary_language
       TRANSCRIBE_LANGUAGE_OPTIONS = join(",", var.transcribe_language_options)

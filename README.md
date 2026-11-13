@@ -1,7 +1,7 @@
 # tldr
 
 [@bfeatb_bot](https://t.me/bfeatb_bot), a Telegram bot that summarizes voice messages, round videos (кружочки), audio and video in a funny way.
-It runs on AWS: Amazon Transcribe turns speech into text and Amazon Nova Lite on Bedrock writes the summary. Everything the bot says in chat is in Russian.
+It runs on AWS: Amazon Transcribe turns speech into text, Amazon Nova Lite on Bedrock writes the summary, and Claude Sonnet 4.6 on Bedrock writes `/roast` replies. Everything the bot says in chat is in Russian.
 
 ```
 Telegram ──webhook──▶ API Gateway ──▶ λ webhook ──SQS──▶ λ worker ──▶ Telegram reply
@@ -57,6 +57,7 @@ Logs: `make logs` (worker) or `make logs FN=webhook`. Messages from chats that a
 | Variable | Default | |
 |---|---|---|
 | `model_id` | `eu.amazon.nova-lite-v1:0` | Bedrock model / inference profile (Converse API) |
+| `roast_model_id` | `eu.anthropic.claude-sonnet-4-6` | model for `/roast`; must accept images. Anthropic models on Bedrock need the one-time use-case form and a valid payment method (billed via AWS Marketplace) |
 | `temperature` | `0.7` | higher = wilder jokes |
 | `summary_language` | `Russian` | `auto` = same language as the message |
 | `transcribe_language_options` | `[]` (auto-detect) | e.g. `["ru-RU","en-US"]`, which improves language detection |

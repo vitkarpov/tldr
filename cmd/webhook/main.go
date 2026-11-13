@@ -175,6 +175,9 @@ func (a *app) handleRoast(ctx context.Context, m *telegram.Message, args string)
 		Text:          truncate(text, telegram.MaxMessageLen),
 		ForwardedFrom: target.ForwardOrigin.Name(),
 	}
+	if target.ForwardOrigin != nil && j.ForwardedFrom == "" {
+		j.ForwardedFrom = "an unknown author"
+	}
 	if photo != nil {
 		j.PhotoFileID = photo.FileID
 	}
@@ -222,7 +225,8 @@ func (a *app) enqueue(ctx context.Context, j job.Job) error {
 		return fmt.Errorf("enqueue: %w", err)
 	}
 	_ = a.tg.SendTyping(ctx, j.ChatID)
-	slog.Info("job enqueued", "chat_id", j.ChatID, "mode", j.Mode, "kind", j.Kind, "duration", j.DurationSec)
+	slog.Info("job enqueued", "chat_id", j.ChatID, "mode", j.Mode, "kind", j.Kind, "duration", j.DurationSec,
+		"forwarded", j.ForwardedFrom != "", "photo", j.PhotoFileID != "")
 	return nil
 }
 

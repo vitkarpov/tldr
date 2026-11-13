@@ -39,6 +39,12 @@ variable "model_id" {
   default     = "eu.amazon.nova-lite-v1:0"
 }
 
+variable "roast_model_id" {
+  description = "Bedrock model or inference profile for /roast. Must accept images. Claude is much better than Nova at jokes, especially in Russian."
+  type        = string
+  default     = "eu.anthropic.claude-sonnet-4-6"
+}
+
 variable "temperature" {
   description = "Sampling temperature (0-1). A bit of randomness keeps the jokes fresh."
   type        = number
