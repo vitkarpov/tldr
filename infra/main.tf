@@ -1,9 +1,12 @@
 data "aws_caller_identity" "current" {}
 
 locals {
-  # "eu.amazon.nova-lite-v1:0" -> profile prefix "eu", base model "amazon.nova-lite-v1:0".
-  model_is_profile = can(regex("^(us|eu|apac|us-gov|global)\\.", var.model_id))
-  base_model_id    = local.model_is_profile ? replace(var.model_id, "/^[a-z-]+\\./", "") : var.model_id
+  # Every Bedrock model the worker calls, keyed by its ID. "eu.amazon.nova-lite-v1:0" is
+  # a cross-region inference profile (prefix "eu") for base model "amazon.nova-lite-v1:0".
+  bedrock_models = { for id in distinct([var.model_id, var.roast_model_id]) : id => {
+    is_profile = can(regex("^(us|eu|apac|us-gov|global)\\.", id))
+    base_id    = can(regex("^(us|eu|apac|us-gov|global)\\.", id)) ? replace(id, "/^[a-z-]+\\./", "") : id
+  } }
 }
 
 locals {
@@ -175,6 +178,7 @@ resource "aws_lambda_function" "worker" {
     variables = merge(local.common_env, {
       BUCKET_NAME                 = aws_s3_bucket.media.id
       MODEL_ID                    = var.model_id
+      ROAST_MODEL_ID              = var.roast_model_id
       TEMPERATURE                 = tostring(var.temperature)
       SUMMARY_LANGUAGE            = var.summary_language
       TRANSCRIBE_LANGUAGE_OPTIONS = join(",", var.transcribe_language_options)
@@ -249,7 +253,7 @@ locals {
 resource "terraform_data" "set_webhook" {
   count = var.register_webhook ? 1 : 0
 
-  triggers_replace = [local.webhook_url, "commands-v1", sha256(random_password.webhook_secret.result), sha256(var.telegram_bot_token)]
+  triggers_replace = [local.webhook_url, "commands-v2", sha256(random_password.webhook_secret.result), sha256(var.telegram_bot_token)]
 
   provisioner "local-exec" {
     command = <<-EOT
@@ -262,6 +266,7 @@ resource "terraform_data" "set_webhook" {
       {"commands":[
         {"command":"summary","description":"Ответом на голосовое/кружочек: краткий пересказ с шутками"},
         {"command":"tldr","description":"То же самое, для ленивых"},
+        {"command":"roast","description":"Ответом на пост: остроумно прожарить и разделить боль"},
         {"command":"chatid","description":"Показать ID чата"},
         {"command":"help","description":"Как мной пользоваться"}
       ]}

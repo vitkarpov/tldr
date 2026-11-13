@@ -1,4 +1,4 @@
-// Command worker consumes summary jobs from SQS: Telegram download -> Transcribe -> Bedrock LLM -> reply.
+// Command worker consumes summary and roast jobs from SQS: Telegram download -> Transcribe -> Bedrock LLM -> reply.
 package main
 
 import (
@@ -7,13 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
 
 	"github.com/vitkarpov/tldr/internal/config"
 	"github.com/vitkarpov/tldr/internal/job"
@@ -50,6 +53,7 @@ func main() {
 	}
 	sum := summarize.New(awsCfg, summarize.Options{
 		Model:           cfg.Model,
+		RoastModel:      cfg.RoastModel,
 		Temperature:     cfg.Temperature,
 		SummaryLanguage: cfg.SummaryLanguage,
 	})
@@ -104,6 +108,9 @@ func (a *app) process(ctx context.Context, j job.Job) error {
 		return nil
 	}
 	_ = a.tg.SendTyping(ctx, j.ChatID)
+	if j.Mode == job.ModeRoast {
+		return a.roast(ctx, j)
+	}
 
 	tr, err := a.transcript(ctx, j)
 	if err != nil {
@@ -130,6 +137,59 @@ func (a *app) process(ctx context.Context, j job.Job) error {
 		return err
 	}
 	return a.tg.Reply(ctx, j.ChatID, j.MediaMsgID, summary)
+}
+
+func (a *app) roast(ctx context.Context, j job.Job) error {
+	in := summarize.RoastInput{
+		Text:          j.Text,
+		ForwardedFrom: j.ForwardedFrom,
+		Context:       j.StyleHint,
+	}
+	if j.FileID != "" {
+		tr, err := a.transcript(ctx, j)
+		if err != nil {
+			return err
+		}
+		in.Transcript = tr.Text
+	}
+	if j.PhotoFileID != "" {
+		img, err := a.tg.DownloadFile(ctx, j.PhotoFileID)
+		if err != nil {
+			return fmt.Errorf("download photo: %w", err)
+		}
+		if format, ok := imageFormat(img); ok && len(img) <= telegram.MaxImageBytes {
+			in.Image, in.ImageFormat = img, format
+		} else {
+			slog.Warn("roast: skipping unsupported image", "chat_id", j.ChatID, "bytes", len(img))
+		}
+	}
+	if len([]rune(strings.TrimSpace(in.Text+in.Transcript))) < 3 && in.Image == nil {
+		return a.tg.Reply(ctx, j.ChatID, j.MediaMsgID, texts.Silence)
+	}
+
+	_ = a.tg.SendTyping(ctx, j.ChatID)
+	roast, err := a.sum.Roast(ctx, in)
+	if errors.Is(err, summarize.ErrRefused) {
+		return a.tg.Reply(ctx, j.ChatID, j.MediaMsgID, texts.Refused)
+	}
+	if err != nil {
+		return err
+	}
+	return a.tg.Reply(ctx, j.ChatID, j.MediaMsgID, roast)
+}
+
+func imageFormat(b []byte) (types.ImageFormat, bool) {
+	switch http.DetectContentType(b) {
+	case "image/jpeg":
+		return types.ImageFormatJpeg, true
+	case "image/png":
+		return types.ImageFormatPng, true
+	case "image/webp":
+		return types.ImageFormatWebp, true
+	case "image/gif":
+		return types.ImageFormatGif, true
+	}
+	return "", false
 }
 
 // transcript returns a cached transcript for the file or produces (and caches) a new one,

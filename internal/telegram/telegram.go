@@ -52,17 +52,93 @@ type Chat struct {
 }
 
 type Message struct {
-	MessageID      int64    `json:"message_id"`
-	From           *User    `json:"from,omitempty"`
-	Chat           Chat     `json:"chat"`
-	Text           string   `json:"text,omitempty"`
-	Caption        string   `json:"caption,omitempty"`
-	ReplyToMessage *Message `json:"reply_to_message,omitempty"`
-	Voice          *Media   `json:"voice,omitempty"`
-	Audio          *Media   `json:"audio,omitempty"`
-	VideoNote      *Media   `json:"video_note,omitempty"`
-	Video          *Media   `json:"video,omitempty"`
-	Entities       []Entity `json:"entities,omitempty"`
+	MessageID      int64          `json:"message_id"`
+	From           *User          `json:"from,omitempty"`
+	Chat           Chat           `json:"chat"`
+	Text           string         `json:"text,omitempty"`
+	Caption        string         `json:"caption,omitempty"`
+	ReplyToMessage *Message       `json:"reply_to_message,omitempty"`
+	Voice          *Media         `json:"voice,omitempty"`
+	Audio          *Media         `json:"audio,omitempty"`
+	VideoNote      *Media         `json:"video_note,omitempty"`
+	Video          *Media         `json:"video,omitempty"`
+	Photo          []PhotoSize    `json:"photo,omitempty"`
+	ForwardOrigin  *MessageOrigin `json:"forward_origin,omitempty"`
+	Entities       []Entity       `json:"entities,omitempty"`
+}
+
+// PhotoSize is one resolution of a photo; Telegram sends several, smallest first.
+type PhotoSize struct {
+	FileID       string `json:"file_id"`
+	FileUniqueID string `json:"file_unique_id"`
+	Width        int    `json:"width"`
+	Height       int    `json:"height"`
+	FileSize     int64  `json:"file_size,omitempty"`
+}
+
+// MessageOrigin describes where a forwarded message came from.
+type MessageOrigin struct {
+	Type            string `json:"type"` // user, hidden_user, chat, channel
+	SenderUser      *User  `json:"sender_user,omitempty"`
+	SenderUserName  string `json:"sender_user_name,omitempty"`
+	Chat            *Chat  `json:"chat,omitempty"`
+	SenderChat      *Chat  `json:"sender_chat,omitempty"`
+	AuthorSignature string `json:"author_signature,omitempty"`
+}
+
+// Name returns a human-readable author of the forwarded message.
+func (o *MessageOrigin) Name() string {
+	switch {
+	case o == nil:
+		return ""
+	case o.SenderUser != nil:
+		return o.SenderUser.DisplayName()
+	case o.SenderUserName != "":
+		return o.SenderUserName
+	}
+	c := o.Chat
+	if c == nil {
+		c = o.SenderChat
+	}
+	if c == nil {
+		return ""
+	}
+	if o.AuthorSignature != "" && o.AuthorSignature != c.Title {
+		return o.AuthorSignature + " (" + c.Title + ")"
+	}
+	return c.Title
+}
+
+// MaxImageBytes is the Bedrock Converse limit for an inline image.
+const MaxImageBytes = 3_750_000
+
+// BestPhoto returns the largest photo size that fits the image limit, or nil.
+func (m *Message) BestPhoto() *PhotoSize {
+	if m == nil {
+		return nil
+	}
+	var best *PhotoSize
+	for i := range m.Photo {
+		p := &m.Photo[i]
+		if p.FileSize > MaxImageBytes {
+			continue
+		}
+		if best == nil || p.Width*p.Height > best.Width*best.Height {
+			best = p
+		}
+	}
+	return best
+}
+
+// TextContent returns the message text or caption.
+func (m *Message) TextContent() string {
+	if m == nil {
+		return ""
+	}
+	if m.Text != "" {
+		return m.Text
+	}
+	return m.Caption
 }
 
 type Entity struct {

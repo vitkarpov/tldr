@@ -27,6 +27,9 @@ import (
 
 const maxStyleHintLen = 200
 
+// errQuotaAnswered means the user was already told the quota is spent; nothing to log.
+var errQuotaAnswered = errors.New("quota exceeded, user notified")
+
 type app struct {
 	cfg         *config.Config
 	tg          *telegram.Client
@@ -78,7 +81,7 @@ func (a *app) handle(ctx context.Context, req events.APIGatewayV2HTTPRequest) (e
 		return ok, nil
 	}
 	// Always answer 200: an error here makes Telegram redeliver the same update over and over.
-	if err := a.handleMessage(ctx, upd.Message); err != nil {
+	if err := a.handleMessage(ctx, upd.Message); err != nil && !errors.Is(err, errQuotaAnswered) {
 		slog.Error("handle message", "chat_id", upd.Message.Chat.ID, "err", err)
 	}
 	return ok, nil
@@ -106,6 +109,8 @@ func (a *app) handleMessage(ctx context.Context, m *telegram.Message) error {
 
 	var target *telegram.Message
 	switch {
+	case cmd == "roast" || cmd == "r":
+		return a.handleRoast(ctx, m, args)
 	case cmd == "summary" || cmd == "tldr" || cmd == "s":
 		target = m.ReplyToMessage
 		if k, _ := target.ExtractMedia(); k == "" {
@@ -124,22 +129,8 @@ func (a *app) handleMessage(ctx context.Context, m *telegram.Message) error {
 	}
 
 	kind, media := target.ExtractMedia()
-	if media.Duration > a.cfg.MaxDurationSec {
-		return a.tg.Reply(ctx, chatID, m.MessageID, texts.TooLong(media.Duration, a.cfg.MaxDurationSec))
-	}
-	if media.FileSize > telegram.MaxDownloadBytes {
-		return a.tg.Reply(ctx, chatID, m.MessageID, texts.TooLargeFile)
-	}
-
-	if err := a.store.TakeQuota(ctx, chatID, a.cfg.DailyLimit); err != nil {
-		if errors.Is(err, store.ErrQuotaExceeded) {
-			return a.tg.Reply(ctx, chatID, m.MessageID, texts.QuotaExceeded)
-		}
-		return fmt.Errorf("quota: %w", err)
-	}
-
-	if len([]rune(args)) > maxStyleHintLen {
-		args = string([]rune(args)[:maxStyleHintLen])
+	if ok, err := a.checkMedia(ctx, m, media); !ok {
+		return err
 	}
 	j := job.Job{
 		ChatID:        chatID,
@@ -152,8 +143,80 @@ func (a *app) handleMessage(ctx context.Context, m *telegram.Message) error {
 		DurationSec:   media.Duration,
 		SpeakerName:   target.From.DisplayName(),
 		RequesterName: m.From.DisplayName(),
-		StyleHint:     args,
+		StyleHint:     truncate(args, maxStyleHintLen),
 	}
+	return a.enqueue(ctx, j)
+}
+
+// handleRoast queues a roast of the replied-to post: text, caption, photo and/or voice/video.
+func (a *app) handleRoast(ctx context.Context, m *telegram.Message, args string) error {
+	target := m.ReplyToMessage
+	text := target.TextContent()
+	photo := target.BestPhoto()
+	kind, media := target.ExtractMedia()
+	if target == nil || (strings.TrimSpace(text) == "" && photo == nil && media == nil) {
+		return a.tg.Reply(ctx, m.Chat.ID, m.MessageID, texts.ReplyToRoast)
+	}
+	if media != nil {
+		if ok, err := a.checkMedia(ctx, m, media); !ok {
+			return err
+		}
+	} else if err := a.takeQuota(ctx, m); err != nil {
+		return err
+	}
+	j := job.Job{
+		Mode:          job.ModeRoast,
+		ChatID:        m.Chat.ID,
+		CommandMsgID:  m.MessageID,
+		MediaMsgID:    target.MessageID,
+		SpeakerName:   target.From.DisplayName(),
+		RequesterName: m.From.DisplayName(),
+		StyleHint:     truncate(args, maxStyleHintLen),
+		Text:          truncate(text, telegram.MaxMessageLen),
+		ForwardedFrom: target.ForwardOrigin.Name(),
+	}
+	if target.ForwardOrigin != nil && j.ForwardedFrom == "" {
+		j.ForwardedFrom = "an unknown author"
+	}
+	if photo != nil {
+		j.PhotoFileID = photo.FileID
+	}
+	if media != nil {
+		j.Kind, j.FileID, j.FileUniqueID, j.MimeType, j.DurationSec = kind, media.FileID, media.FileUniqueID, media.MimeType, media.Duration
+	}
+	return a.enqueue(ctx, j)
+}
+
+// checkMedia enforces size/duration limits and takes quota. ok=false means the user was answered.
+func (a *app) checkMedia(ctx context.Context, m *telegram.Message, media *telegram.Media) (ok bool, err error) {
+	if media.Duration > a.cfg.MaxDurationSec {
+		return false, a.tg.Reply(ctx, m.Chat.ID, m.MessageID, texts.TooLong(media.Duration, a.cfg.MaxDurationSec))
+	}
+	if media.FileSize > telegram.MaxDownloadBytes {
+		return false, a.tg.Reply(ctx, m.Chat.ID, m.MessageID, texts.TooLargeFile)
+	}
+	if err := a.takeQuota(ctx, m); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// takeQuota returns errQuotaAnswered (after telling the user) when the daily limit is spent.
+func (a *app) takeQuota(ctx context.Context, m *telegram.Message) error {
+	err := a.store.TakeQuota(ctx, m.Chat.ID, a.cfg.DailyLimit)
+	if errors.Is(err, store.ErrQuotaExceeded) {
+		if rerr := a.tg.Reply(ctx, m.Chat.ID, m.MessageID, texts.QuotaExceeded); rerr != nil {
+			return rerr
+		}
+		return errQuotaAnswered
+	}
+	if err != nil {
+		return fmt.Errorf("quota: %w", err)
+	}
+	return nil
+}
+
+func (a *app) enqueue(ctx context.Context, j job.Job) error {
 	body, err := json.Marshal(j)
 	if err != nil {
 		return err
@@ -161,9 +224,17 @@ func (a *app) handleMessage(ctx context.Context, m *telegram.Message) error {
 	if _, err := a.sqs.SendMessage(ctx, &sqs.SendMessageInput{QueueUrl: aws.String(a.cfg.QueueURL), MessageBody: aws.String(string(body))}); err != nil {
 		return fmt.Errorf("enqueue: %w", err)
 	}
-	_ = a.tg.SendTyping(ctx, chatID)
-	slog.Info("job enqueued", "chat_id", chatID, "kind", kind, "duration", media.Duration)
+	_ = a.tg.SendTyping(ctx, j.ChatID)
+	slog.Info("job enqueued", "chat_id", j.ChatID, "mode", j.Mode, "kind", j.Kind, "duration", j.DurationSec,
+		"forwarded", j.ForwardedFrom != "", "photo", j.PhotoFileID != "")
 	return nil
+}
+
+func truncate(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n])
+	}
+	return s
 }
 
 // parseCommand returns ("summary", "like a pirate") for "/summary@MyBot like a pirate".

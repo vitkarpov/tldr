@@ -96,10 +96,10 @@ data "aws_iam_policy_document" "worker" {
   statement {
     sid     = "Bedrock"
     actions = ["bedrock:InvokeModel"]
-    resources = concat(
-      ["arn:aws:bedrock:*::foundation-model/${local.base_model_id}"],
-      local.model_is_profile ? ["arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/${var.model_id}"] : [],
-    )
+    resources = flatten([for id, m in local.bedrock_models : concat(
+      ["arn:aws:bedrock:*::foundation-model/${m.base_id}"],
+      m.is_profile ? ["arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/${id}"] : [],
+    )])
   }
 }
 
