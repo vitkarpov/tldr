@@ -20,6 +20,7 @@ type Job struct {
 	SpeakerName   string `json:"speaker_name"`
 	RequesterName string `json:"requester_name"`
 	StyleHint     string `json:"style_hint,omitempty"`
+	PostedAt      int64  `json:"posted_at,omitempty"` // unix seconds; original date for forwards
 	// Roast only: the post's text/caption, attached photo and forward source.
 	Text          string `json:"text,omitempty"`
 	PhotoFileID   string `json:"photo_file_id,omitempty"`

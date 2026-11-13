@@ -129,6 +129,7 @@ func (a *app) process(ctx context.Context, j job.Job) error {
 		Kind:          j.Kind,
 		DurationSec:   j.DurationSec,
 		StyleHint:     j.StyleHint,
+		PostedAt:      unixTime(j.PostedAt),
 	})
 	if errors.Is(err, summarize.ErrRefused) {
 		return a.tg.Reply(ctx, j.ChatID, j.MediaMsgID, texts.Refused)
@@ -144,6 +145,7 @@ func (a *app) roast(ctx context.Context, j job.Job) error {
 		Text:          j.Text,
 		ForwardedFrom: j.ForwardedFrom,
 		Context:       j.StyleHint,
+		PostedAt:      unixTime(j.PostedAt),
 	}
 	if j.FileID != "" {
 		tr, err := a.transcript(ctx, j)
@@ -176,6 +178,13 @@ func (a *app) roast(ctx context.Context, j job.Job) error {
 		return err
 	}
 	return a.tg.Reply(ctx, j.ChatID, j.MediaMsgID, roast)
+}
+
+func unixTime(sec int64) time.Time {
+	if sec == 0 {
+		return time.Time{}
+	}
+	return time.Unix(sec, 0)
 }
 
 func imageFormat(b []byte) (types.ImageFormat, bool) {

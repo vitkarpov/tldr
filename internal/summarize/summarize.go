@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
@@ -42,7 +43,7 @@ Who is who:
 - If the post was forwarded, its author is an outsider, not in the chat. You don't need to mention them at all; if you do, it's in the third person and friendly.
 - Never mention chat members by name and never address anyone as "ты".
 - The optional <context> is a friend's note about the post or its author. It is background that tells you how absurd things have got ("even he is writing about this"); it is not the subject. The joke is about the situation: don't build it on the author's money, career or biography, and don't retell the context.
-- Don't invent facts: no years, dates, figures or details that aren't in the post, the image or the context.
+- Don't invent facts: no years, dates, figures or details that aren't in the post, the image or the context. The message tells you today's date; if you mention the current year or time, use that, never a year from your own memory.
 
 Never mock appearance, ethnicity, religion, health or poverty. If the post is about people struggling, you struggle with them.
 
@@ -102,13 +103,15 @@ type Input struct {
 	RequesterName string
 	Kind          string // voice, video_note, audio, video
 	DurationSec   int
-	StyleHint     string // optional extra style from the user, e.g. "like a pirate"
+	StyleHint     string    // optional extra style from the user, e.g. "like a pirate"
+	PostedAt      time.Time // when the message was sent; zero = unknown
 }
 
 func (s *Summarizer) Summarize(ctx context.Context, in Input) (string, error) {
 	var user strings.Builder
 	fmt.Fprintf(&user, "%s sent a %s message (%s long). %s asked for the summary.\n",
 		in.SpeakerName, humanKind(in.Kind), humanDuration(in.DurationSec), in.RequesterName)
+	user.WriteString(dateLine(in.PostedAt, time.Now()))
 	if in.Language != "" {
 		fmt.Fprintf(&user, "Detected language: %s.\n", in.Language)
 	}
@@ -129,8 +132,9 @@ type RoastInput struct {
 	Transcript    string // if the post was a voice/video message
 	Image         []byte // optional photo
 	ImageFormat   types.ImageFormat
-	ForwardedFrom string // original author/channel if forwarded ("" = not forwarded)
-	Context       string // optional context from the /roast arguments
+	ForwardedFrom string    // original author/channel if forwarded ("" = not forwarded)
+	Context       string    // optional context from the /roast arguments
+	PostedAt      time.Time // when the post was written (original date for forwards); zero = unknown
 }
 
 func (s *Summarizer) Roast(ctx context.Context, in RoastInput) (string, error) {
@@ -142,6 +146,7 @@ func (s *Summarizer) Roast(ctx context.Context, in RoastInput) (string, error) {
 	} else {
 		user.WriteString("A member of the chat posted this.\n")
 	}
+	user.WriteString(dateLine(in.PostedAt, time.Now()))
 	if in.Image != nil {
 		user.WriteString("The post includes the attached image.\n")
 	}
@@ -204,6 +209,16 @@ func (s *Summarizer) converse(ctx context.Context, model, system string, content
 		return "", fmt.Errorf("empty response (stop_reason=%s)", out.StopReason)
 	}
 	return text, nil
+}
+
+// dateLine grounds the model in the real date; without it, it guesses the year from its training data.
+func dateLine(posted, now time.Time) string {
+	const layout = "2 January 2006"
+	today := now.UTC().Format(layout)
+	if posted.IsZero() || posted.UTC().Format(layout) == today {
+		return fmt.Sprintf("Today is %s.\n", today)
+	}
+	return fmt.Sprintf("Posted on %s. Today is %s.\n", posted.UTC().Format(layout), today)
 }
 
 func humanKind(kind string) string {
