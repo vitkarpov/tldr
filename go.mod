@@ -1,4 +1,4 @@
-module github.com/viktorkarpov/tg-message-summary
+module github.com/vitkarpov/tldr
 
 go 1.27.3
 

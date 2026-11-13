@@ -18,11 +18,11 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
-	"github.com/viktorkarpov/tg-message-summary/internal/config"
-	"github.com/viktorkarpov/tg-message-summary/internal/job"
-	"github.com/viktorkarpov/tg-message-summary/internal/store"
-	"github.com/viktorkarpov/tg-message-summary/internal/telegram"
-	"github.com/viktorkarpov/tg-message-summary/internal/texts"
+	"github.com/vitkarpov/tldr/internal/config"
+	"github.com/vitkarpov/tldr/internal/job"
+	"github.com/vitkarpov/tldr/internal/store"
+	"github.com/vitkarpov/tldr/internal/telegram"
+	"github.com/vitkarpov/tldr/internal/texts"
 )
 
 const maxStyleHintLen = 200

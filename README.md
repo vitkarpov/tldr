@@ -1,6 +1,6 @@
-# tg-message-summary
+# tldr
 
-A Telegram bot that summarizes voice messages, round videos (кружочки), audio and video in a funny way.
+[@bfeatb_bot](https://t.me/bfeatb_bot), a Telegram bot that summarizes voice messages, round videos (кружочки), audio and video in a funny way.
 It runs on AWS: Amazon Transcribe turns speech into text and Amazon Nova Lite on Bedrock writes the summary. Everything the bot says in chat is in Russian.
 
 ```
@@ -69,6 +69,7 @@ Most of the cost is Amazon Transcribe, billed per minute of audio (see [pricing]
 
 ## Notes
 
+- AWS resources are named with the `tg-summary` prefix (`infra/variables.tf`), from before the project was renamed to tldr. Changing it recreates every resource, including the webhook URL, so it was left as is.
 - Telegram only lets bots download files up to 20 MB.
 - Media and transcripts are deleted from S3 after each job; a 1-day lifecycle rule is the safety net. Cached transcripts expire from DynamoDB via TTL.
 - The Terraform state contains the bot token. Use the encrypted S3 backend (commented out in `infra/versions.tf`) if the state leaves your laptop.

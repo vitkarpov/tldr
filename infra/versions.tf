@@ -20,7 +20,7 @@ terraform {
   # laptop, use an encrypted remote backend, e.g.:
   # backend "s3" {
   #   bucket       = "my-tf-state"
-  #   key          = "tg-message-summary/terraform.tfstate"
+  #   key          = "tldr/terraform.tfstate"
   #   region       = "us-east-1"
   #   encrypt      = true
   #   use_lockfile = true

@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/viktorkarpov/tg-message-summary/internal/telegram"
+	"github.com/vitkarpov/tldr/internal/telegram"
 )
 
 func TestParseCommand(t *testing.T) {

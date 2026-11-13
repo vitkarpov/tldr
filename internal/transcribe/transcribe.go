@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/transcribe"
 	"github.com/aws/aws-sdk-go-v2/service/transcribe/types"
 
-	"github.com/viktorkarpov/tg-message-summary/internal/telegram"
+	"github.com/vitkarpov/tldr/internal/telegram"
 )
 
 type Transcriber struct {

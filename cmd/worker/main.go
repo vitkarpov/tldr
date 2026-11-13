@@ -15,13 +15,13 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 
-	"github.com/viktorkarpov/tg-message-summary/internal/config"
-	"github.com/viktorkarpov/tg-message-summary/internal/job"
-	"github.com/viktorkarpov/tg-message-summary/internal/store"
-	"github.com/viktorkarpov/tg-message-summary/internal/summarize"
-	"github.com/viktorkarpov/tg-message-summary/internal/telegram"
-	"github.com/viktorkarpov/tg-message-summary/internal/texts"
-	"github.com/viktorkarpov/tg-message-summary/internal/transcribe"
+	"github.com/vitkarpov/tldr/internal/config"
+	"github.com/vitkarpov/tldr/internal/job"
+	"github.com/vitkarpov/tldr/internal/store"
+	"github.com/vitkarpov/tldr/internal/summarize"
+	"github.com/vitkarpov/tldr/internal/telegram"
+	"github.com/vitkarpov/tldr/internal/texts"
+	"github.com/vitkarpov/tldr/internal/transcribe"
 )
 
 type app struct {
