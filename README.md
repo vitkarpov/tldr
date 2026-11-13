@@ -16,6 +16,7 @@ Telegram ──webhook──▶ API Gateway ──▶ λ webhook ──SQS──
 
 - In a group, reply to a voice or video message with `/summary` or `/tldr`.
 - Add a style if you like: `/summary как спортивный комментатор`.
+- Reply to any post (text, photo with caption, forwarded channel post, voice/video) with `/roast` (or `/r`) to get a short, witty "we're all in this together" roast. The bot sees the image too (Nova Lite is multimodal). With privacy mode on the bot can't read the rest of the chat, so give it context: `/roast автор продал компанию Яндексу за миллиарды`.
 - In a DM with the bot, send or forward a voice message and it summarizes it straight away.
 - `/chatid` shows the chat ID. It works in any chat so you can fill in the whitelist.
 
@@ -61,7 +62,7 @@ Logs: `make logs` (worker) or `make logs FN=webhook`. Messages from chats that a
 | `transcribe_language_options` | `[]` (auto-detect) | e.g. `["ru-RU","en-US"]`, which improves language detection |
 | `daily_limit_per_chat`, `max_duration_sec`, `transcript_cache_ttl_hours`, `worker_max_concurrency` | see above | |
 
-To change the bot's chat messages, edit `internal/texts/texts.go`. To change the humor style, edit the system prompt in `internal/summarize/summarize.go`.
+To change the bot's chat messages, edit `internal/texts/texts.go`. To change the humor style, edit the system prompts (`systemPrompt`, `roastPrompt`) in `internal/summarize/summarize.go`.
 
 ## Rough cost per summary
 

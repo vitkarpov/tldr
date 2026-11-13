@@ -249,7 +249,7 @@ locals {
 resource "terraform_data" "set_webhook" {
   count = var.register_webhook ? 1 : 0
 
-  triggers_replace = [local.webhook_url, "commands-v1", sha256(random_password.webhook_secret.result), sha256(var.telegram_bot_token)]
+  triggers_replace = [local.webhook_url, "commands-v2", sha256(random_password.webhook_secret.result), sha256(var.telegram_bot_token)]
 
   provisioner "local-exec" {
     command = <<-EOT
@@ -262,6 +262,7 @@ resource "terraform_data" "set_webhook" {
       {"commands":[
         {"command":"summary","description":"Ответом на голосовое/кружочек: краткий пересказ с шутками"},
         {"command":"tldr","description":"То же самое, для ленивых"},
+        {"command":"roast","description":"Ответом на пост: остроумно прожарить и разделить боль"},
         {"command":"chatid","description":"Показать ID чата"},
         {"command":"help","description":"Как мной пользоваться"}
       ]}

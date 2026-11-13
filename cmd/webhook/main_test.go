@@ -15,6 +15,7 @@ func TestParseCommand(t *testing.T) {
 		{"/summary@SummaryBot like a pirate", "summary", "like a pirate"},
 		{"/TLDR@summarybot", "tldr", ""},
 		{"/summary@OtherBot", "", ""},
+		{"/roast@SummaryBot основатель eLama", "roast", "основатель eLama"},
 		{"hello /summary", "", ""},
 		{"", "", ""},
 	}
